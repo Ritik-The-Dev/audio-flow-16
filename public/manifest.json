@@ -1,0 +1,47 @@
+{
+  "name": "VibeStream - Music Player",
+  "short_name": "VibeStream",
+  "description": "Modern music streaming app with background playback and search",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#1DB954",
+  "orientation": "portrait",
+  "scope": "/",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "features": [
+    "background-music-playback",
+    "media-session-api",
+    "offline-cache"
+  ],
+  "shortcuts": [
+    {
+      "name": "Search Music",
+      "short_name": "Search",
+      "description": "Search for songs and artists",
+      "url": "/?action=search"
+    },
+    {
+      "name": "Trending",
+      "short_name": "Trending",
+      "description": "View trending songs",
+      "url": "/?action=trending"
+    }
+  ]
+}
