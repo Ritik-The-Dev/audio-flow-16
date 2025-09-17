@@ -12,6 +12,36 @@ import { Song } from '../types/music';
 import { Button } from '@/components/ui/button';
 import { Music, Loader2, User, Heart, ListMusic, History, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from "@/lib/supabase"  // your client instance
+
+export const saveSongsToSupabase = async (songs: Song[]) => {
+  try {
+    // get JWT from current logged-in user
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    if (!token) throw new Error("No auth token found");
+
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/songs`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ songs }),
+      }
+    );
+
+    if (!res.ok) throw new Error(`Failed to save songs: ${res.status}`);
+
+    return await res.json(); // inserted/updated rows
+  } catch (err) {
+    console.error("Error saving songs:", err);
+    return [];
+  }
+};
 
 const Index = () => {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -54,8 +84,8 @@ const Index = () => {
       setSongs(trendingSongs);
       setSearchQuery('');
       
-      if (trendingSongs.length > 0) {
-        toast.success(`Found ${trendingSongs.length} trending songs`);
+      if (trendingSongs?.length > 0) {
+        toast.success(`Found ${trendingSongs?.length} trending songs`);
       }
     } catch (error) {
       toast.error('Error loading music. Please check your internet connection.');
@@ -74,12 +104,13 @@ const Index = () => {
       setIsLoading(true);
       setSearchQuery(query);
       const searchResults = await searchSongs(query);
+      saveSongsToSupabase(searchResults)
       setSongs(searchResults);
       
-      if (searchResults.length === 0) {
+      if (searchResults?.length === 0) {
         toast.error(`No results found for "${query}"`);
       } else {
-        toast.success(`Found ${searchResults.length} songs`);
+        toast.success(`Found ${searchResults?.length} songs`);
       }
     } catch (error) {
       toast.error('Search failed. Please check your internet connection.');
@@ -109,10 +140,12 @@ const Index = () => {
         await removeFromFavorites(song.id);
         toast.success('Removed from favorites');
       } else {
+        console.log('Fvoruite')
         await addToFavorites(song);
         toast.success('Added to favorites');
       }
     } catch (error) {
+      console.log('Errror ',error)
       toast.error('Failed to update favorites');
     }
   };
@@ -127,7 +160,7 @@ const Index = () => {
       case 'favorites':
         return favorites;
       case 'history':
-        return history.map(h => h.songs);
+        return history?.map(h => h.songs);
       default:
         return songs;
     }
@@ -223,13 +256,13 @@ const Index = () => {
           <p className="text-sm text-muted-foreground">
             {currentView === 'home' 
               ? (searchQuery 
-                ? `${songs.length} songs found` 
+                ? `${songs?.length} songs found` 
                 : 'Discover what\'s popular today')
               : currentView === 'favorites'
-              ? `${favorites.length} favorite songs`
+              ? `${favorites?.length} favorite songs`
               : currentView === 'history'
-              ? `${history.length} recently played`
-              : `${playlists.length} playlists`
+              ? `${history?.length} recently played`
+              : `${playlists?.length} playlists`
             }
           </p>
         </div>
@@ -249,14 +282,14 @@ const Index = () => {
           <>
             {currentView === 'playlists' ? (
               <div className="space-y-4">
-                {playlists.length === 0 ? (
+                {playlists?.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <ListMusic className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>No playlists yet</p>
                     <p className="text-sm">Create your first playlist!</p>
                   </div>
                 ) : (
-                  playlists.map((playlist) => (
+                  playlists?.map((playlist) => (
                     <div key={playlist.id} className="p-4 bg-card rounded-lg">
                       <h3 className="font-semibold">{playlist.name}</h3>
                       {playlist.description && (
@@ -274,7 +307,7 @@ const Index = () => {
                 onPlaySong={handleSongPlay}
                 onTogglePlay={togglePlay}
                 onToggleFavorite={handleToggleFavorite}
-                favorites={user ? favorites.map(f => f.id) : []}
+                favorites={user ? favorites?.map(f => f.id) : []}
               />
             )}
           </>
@@ -294,6 +327,7 @@ const Index = () => {
         onVolumeChange={setVolume}
         onToggleShuffle={toggleShuffle}
         onToggleRepeat={toggleRepeat}
+        handleToggleFavorite={handleToggleFavorite}
       />
 
       {/* Auth Modal */}

@@ -25,7 +25,7 @@ export const useMusic = () => {
       
       if (response.ok) {
         const data = await response.json()
-        setFavorites(data.map((fav: any) => fav.songs))
+        setFavorites(data?.map((fav: any) => fav.songs))
       }
     } catch (error) {
       console.error('Error fetching favorites:', error)
@@ -97,7 +97,8 @@ export const useMusic = () => {
       })
       
       if (response.ok) {
-        await fetchFavorites()
+        const data = await fetchFavorites()
+        console.log('Favoruite Data ,',data)
       }
     } catch (error) {
       console.error('Error adding to favorites:', error)
@@ -167,7 +168,7 @@ export const useMusic = () => {
 
   // Check if song is favorited
   const isFavorited = (songId: string) => {
-    return favorites.some(fav => fav.id === songId)
+    return favorites?.some(fav => fav.id === songId)
   }
 
   useEffect(() => {

@@ -1,13 +1,13 @@
 import React from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
-  Volume2, 
-  Shuffle, 
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  Shuffle,
   Repeat,
   Heart
 } from 'lucide-react';
@@ -22,6 +22,7 @@ interface MusicPlayerProps {
   onVolumeChange: (volume: number) => void;
   onToggleShuffle: () => void;
   onToggleRepeat: () => void;
+  handleToggleFavorite: (data) => void;
 }
 
 const formatTime = (seconds: number): string => {
@@ -40,6 +41,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   onVolumeChange,
   onToggleShuffle,
   onToggleRepeat,
+  handleToggleFavorite
 }) => {
   const { currentSong, isPlaying, currentTime, duration, volume, isShuffled, isRepeated } = playerState;
 
@@ -52,8 +54,8 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
       <div className="max-w-sm mx-auto bg-card rounded-lg p-4 animate-slide-up">
         {/* Song Info */}
         <div className="flex items-center gap-3 mb-4">
-          <img 
-            src={currentSong.image} 
+          <img
+            src={currentSong.image}
             alt={currentSong.title}
             className="w-12 h-12 rounded-lg object-cover"
           />
@@ -61,7 +63,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
             <h3 className="font-semibold text-sm truncate">{currentSong.title}</h3>
             <p className="text-muted-foreground text-xs truncate">{currentSong.artist}</p>
           </div>
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
+          <Button onClick={() => handleToggleFavorite(currentSong)} variant="ghost" size="icon" className="text-muted-foreground">
             <Heart className="w-4 h-4" />
           </Button>
         </div>
@@ -83,23 +85,23 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
         {/* Controls */}
         <div className="flex items-center justify-between mb-4">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             onClick={onToggleShuffle}
             className={isShuffled ? 'text-primary' : 'text-muted-foreground'}
           >
             <Shuffle className="w-4 h-4" />
           </Button>
-          
+
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={onPrevious}>
               <SkipBack className="w-5 h-5" />
             </Button>
-            
-            <Button 
-              variant="default" 
-              size="icon" 
+
+            <Button
+              variant="default"
+              size="icon"
               className="w-12 h-12 rounded-full"
               onClick={onTogglePlay}
             >
@@ -109,14 +111,14 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                 <Play className="w-6 h-6 ml-1" />
               )}
             </Button>
-            
+
             <Button variant="ghost" size="icon" onClick={onNext}>
               <SkipForward className="w-5 h-5" />
             </Button>
           </div>
 
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             onClick={onToggleRepeat}
             className={isRepeated ? 'text-primary' : 'text-muted-foreground'}

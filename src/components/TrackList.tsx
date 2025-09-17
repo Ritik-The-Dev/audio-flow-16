@@ -34,7 +34,7 @@ export const TrackList: React.FC<TrackListProps> = ({
   onToggleFavorite,
   favorites = []
 }) => {
-  if (songs.length === 0) {
+  if (songs?.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-muted-foreground">
@@ -55,7 +55,7 @@ export const TrackList: React.FC<TrackListProps> = ({
 
   return (
     <div className="space-y-1">
-      {songs.map((song, index) => {
+      {songs?.map((song, index) => {
         const isCurrentSong = currentSong?.id === song.id;
         const isCurrentlyPlaying = isCurrentSong && isPlaying;
 
