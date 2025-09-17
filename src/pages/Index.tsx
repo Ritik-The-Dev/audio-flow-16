@@ -3,17 +3,33 @@ import { SearchBar } from '../components/SearchBar';
 import { TrackList } from '../components/TrackList';
 import { MusicPlayer } from '../components/MusicPlayer';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { AuthModal } from '../components/AuthModal';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
+import { useAuth } from '../hooks/useAuth';
+import { useMusic } from '../hooks/useMusic';
 import { searchSongs, getTrendingSongs } from '../utils/api';
 import { Song } from '../types/music';
-import { useToast } from '../hooks/use-toast';
-import { Music, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Music, Loader2, User, Heart, ListMusic, History, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 
 const Index = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const { toast } = useToast();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [currentView, setCurrentView] = useState<'home' | 'favorites' | 'playlists' | 'history'>('home');
+  
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { 
+    favorites, 
+    playlists, 
+    history, 
+    addToFavorites, 
+    removeFromFavorites, 
+    isFavorited,
+    addToHistory 
+  } = useMusic();
 
   const {
     playerState,
@@ -39,17 +55,10 @@ const Index = () => {
       setSearchQuery('');
       
       if (trendingSongs.length > 0) {
-        toast({
-          title: "Music loaded!",
-          description: `Found ${trendingSongs.length} trending songs`,
-        });
+        toast.success(`Found ${trendingSongs.length} trending songs`);
       }
     } catch (error) {
-      toast({
-        title: "Error loading music",
-        description: "Please check your internet connection and try again.",
-        variant: "destructive",
-      });
+      toast.error('Error loading music. Please check your internet connection.');
     } finally {
       setIsLoading(false);
     }
@@ -68,24 +77,72 @@ const Index = () => {
       setSongs(searchResults);
       
       if (searchResults.length === 0) {
-        toast({
-          title: "No results found",
-          description: `Try searching for something else instead of "${query}"`,
-        });
+        toast.error(`No results found for "${query}"`);
       } else {
-        toast({
-          title: "Search complete",
-          description: `Found ${searchResults.length} songs`,
-        });
+        toast.success(`Found ${searchResults.length} songs`);
       }
     } catch (error) {
-      toast({
-        title: "Search failed",
-        description: "Please check your internet connection and try again.",
-        variant: "destructive",
-      });
+      toast.error('Search failed. Please check your internet connection.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSongPlay = async (song: Song, songsList: Song[]) => {
+    playSong(song, songsList);
+    
+    // Add to history if user is logged in
+    if (user) {
+      await addToHistory(song);
+    }
+  };
+
+  const handleToggleFavorite = async (song: Song) => {
+    if (!user) {
+      toast.error('Please sign in to add favorites');
+      setShowAuthModal(true);
+      return;
+    }
+
+    try {
+      if (isFavorited(song.id)) {
+        await removeFromFavorites(song.id);
+        toast.success('Removed from favorites');
+      } else {
+        await addToFavorites(song);
+        toast.success('Added to favorites');
+      }
+    } catch (error) {
+      toast.error('Failed to update favorites');
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out successfully');
+  };
+
+  const getCurrentSongs = () => {
+    switch (currentView) {
+      case 'favorites':
+        return favorites;
+      case 'history':
+        return history.map(h => h.songs);
+      default:
+        return songs;
+    }
+  };
+
+  const getCurrentTitle = () => {
+    switch (currentView) {
+      case 'favorites':
+        return 'Your Favorites';
+      case 'playlists':
+        return 'Your Playlists';
+      case 'history':
+        return 'Recently Played';
+      default:
+        return searchQuery ? `Results for "${searchQuery}"` : 'Trending Now';
     }
   };
 
@@ -99,10 +156,60 @@ const Index = () => {
               <Music className="w-6 h-6 text-primary" />
               <h1 className="text-xl font-bold gradient-text">VibeStream</h1>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              {user ? (
+                <Button variant="ghost" size="icon" onClick={handleSignOut}>
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              ) : (
+                <Button variant="ghost" size="icon" onClick={() => setShowAuthModal(true)}>
+                  <User className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Navigation */}
+          {user && (
+            <div className="flex gap-2 mb-4">
+              <Button 
+                variant={currentView === 'home' ? 'default' : 'ghost'} 
+                size="sm"
+                onClick={() => setCurrentView('home')}
+              >
+                Home
+              </Button>
+              <Button 
+                variant={currentView === 'favorites' ? 'default' : 'ghost'} 
+                size="sm"
+                onClick={() => setCurrentView('favorites')}
+              >
+                <Heart className="w-3 h-3 mr-1" />
+                Favorites
+              </Button>
+              <Button 
+                variant={currentView === 'playlists' ? 'default' : 'ghost'} 
+                size="sm"
+                onClick={() => setCurrentView('playlists')}
+              >
+                <ListMusic className="w-3 h-3 mr-1" />
+                Playlists
+              </Button>
+              <Button 
+                variant={currentView === 'history' ? 'default' : 'ghost'} 
+                size="sm"
+                onClick={() => setCurrentView('history')}
+              >
+                <History className="w-3 h-3 mr-1" />
+                History
+              </Button>
+            </div>
+          )}
           
-          <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+          {currentView === 'home' && (
+            <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+          )}
         </div>
       </header>
 
@@ -111,12 +218,18 @@ const Index = () => {
         {/* Section Title */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-1">
-            {searchQuery ? `Results for "${searchQuery}"` : 'Trending Now'}
+            {getCurrentTitle()}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {searchQuery 
-              ? `${songs.length} songs found` 
-              : 'Discover what\'s popular today'
+            {currentView === 'home' 
+              ? (searchQuery 
+                ? `${songs.length} songs found` 
+                : 'Discover what\'s popular today')
+              : currentView === 'favorites'
+              ? `${favorites.length} favorite songs`
+              : currentView === 'history'
+              ? `${history.length} recently played`
+              : `${playlists.length} playlists`
             }
           </p>
         </div>
@@ -133,13 +246,38 @@ const Index = () => {
 
         {/* Track List */}
         {!isLoading && (
-          <TrackList
-            songs={songs}
-            currentSong={playerState.currentSong}
-            isPlaying={playerState.isPlaying}
-            onPlaySong={playSong}
-            onTogglePlay={togglePlay}
-          />
+          <>
+            {currentView === 'playlists' ? (
+              <div className="space-y-4">
+                {playlists.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <ListMusic className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No playlists yet</p>
+                    <p className="text-sm">Create your first playlist!</p>
+                  </div>
+                ) : (
+                  playlists.map((playlist) => (
+                    <div key={playlist.id} className="p-4 bg-card rounded-lg">
+                      <h3 className="font-semibold">{playlist.name}</h3>
+                      {playlist.description && (
+                        <p className="text-sm text-muted-foreground">{playlist.description}</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <TrackList
+                songs={getCurrentSongs()}
+                currentSong={playerState.currentSong}
+                isPlaying={playerState.isPlaying}
+                onPlaySong={handleSongPlay}
+                onTogglePlay={togglePlay}
+                onToggleFavorite={handleToggleFavorite}
+                favorites={user ? favorites.map(f => f.id) : []}
+              />
+            )}
+          </>
         )}
 
         {/* Bottom padding for fixed player */}
@@ -157,6 +295,9 @@ const Index = () => {
         onToggleShuffle={toggleShuffle}
         onToggleRepeat={toggleRepeat}
       />
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 };

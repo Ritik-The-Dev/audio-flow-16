@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, MoreVertical } from 'lucide-react';
+import { Play, Pause, MoreVertical, Heart } from 'lucide-react';
 import { Song } from '../types/music';
 
 interface TrackListProps {
@@ -9,6 +9,8 @@ interface TrackListProps {
   isPlaying?: boolean;
   onPlaySong: (song: Song, songs: Song[]) => void;
   onTogglePlay: () => void;
+  onToggleFavorite?: (song: Song) => void;
+  favorites?: string[];
 }
 
 const formatDuration = (duration: string): string => {
@@ -28,7 +30,9 @@ export const TrackList: React.FC<TrackListProps> = ({
   currentSong,
   isPlaying = false,
   onPlaySong,
-  onTogglePlay
+  onTogglePlay,
+  onToggleFavorite,
+  favorites = []
 }) => {
   if (songs.length === 0) {
     return (
@@ -104,6 +108,21 @@ export const TrackList: React.FC<TrackListProps> = ({
                 <span className="text-xs font-mono">
                   {formatDuration(song.duration)}
                 </span>
+                {onToggleFavorite && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity ${
+                      favorites.includes(song.id) ? 'text-red-500 opacity-100' : ''
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite(song);
+                    }}
+                  >
+                    <Heart className={`w-4 h-4 ${favorites.includes(song.id) ? 'fill-current' : ''}`} />
+                  </Button>
+                )}
                 <Button 
                   variant="ghost" 
                   size="icon" 
