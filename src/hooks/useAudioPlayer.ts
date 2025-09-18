@@ -22,33 +22,31 @@ export const useAudioPlayer = () => {
     setPlayerState((prev) => ({ ...prev, isPlaying: false }));
   }, []);
 
-  // Forward declaration for playNext
   const playNext = useCallback(() => {
-    if (playerState.queue.length === 0) return;
+    setPlayerState((prevState) => {
+      if (prevState.queue.length === 0) return prevState;
 
-    let nextIndex = playerState.currentIndex + 1;
-    if (nextIndex >= playerState.queue.length) {
-      // If we've reached the end, stop playing instead of looping
-      pause();
-      setPlayerState((prev) => ({
-        ...prev,
-        isPlaying: false,
-      }));
-      return;
-    }
+      let nextIndex = prevState.currentIndex + 1;
+      if (nextIndex >= prevState.queue.length) {
+        // If we've reached the end, stop playing instead of looping
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        return {
+          ...prevState,
+          isPlaying: false,
+        };
+      }
 
-    const nextSong = playerState.queue[nextIndex];
-    setPlayerState((prev) => ({
-      ...prev,
-      currentIndex: nextIndex,
-      currentSong: nextSong,
-      currentTime: 0,
-    }));
-  }, [
-    playerState.queue,
-    playerState.currentIndex,
-    pause,
-  ]);
+      const nextSong = prevState.queue[nextIndex];
+      return {
+        ...prevState,
+        currentIndex: nextIndex,
+        currentSong: nextSong,
+        currentTime: 0,
+      };
+    });
+  }, []);
 
   const handleEnded = useCallback(() => {
     if (playerState.isRepeated) {
