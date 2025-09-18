@@ -4,51 +4,30 @@ import { TrackList } from '../components/TrackList';
 import { MusicPlayer } from '../components/MusicPlayer';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { AuthModal } from '../components/AuthModal';
+import { SpotifyImport } from '../components/SpotifyImport';
+import { CreatePlaylistDialog, PlaylistDetails } from '../components/PlaylistManager';
+import { useInfiniteScroll } from '../components/InfiniteScroll';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { useAuth } from '../hooks/useAuth';
 import { useMusic } from '../hooks/useMusic';
 import { searchSongs, getTrendingSongs } from '../utils/api';
 import { Song } from '../types/music';
 import { Button } from '@/components/ui/button';
-import { Music, Loader2, User, Heart, ListMusic, History, LogOut } from 'lucide-react';
+import { Music, Loader2, User, Heart, ListMusic, History, LogOut, Plus, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from "@/lib/supabase"  // your client instance
-
-export const saveSongsToSupabase = async (songs: Song[]) => {
-  try {
-    // get JWT from current logged-in user
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-
-    if (!token) throw new Error("No auth token found");
-
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/songs`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ songs }),
-      }
-    );
-
-    if (!res.ok) throw new Error(`Failed to save songs: ${res.status}`);
-
-    return await res.json(); // inserted/updated rows
-  } catch (err) {
-    console.error("Error saving songs:", err);
-    return [];
-  }
-};
+import { supabase } from "@/lib/supabase";
 
 const Index = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSpotifyImport, setShowSpotifyImport] = useState(false);
+  const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [currentView, setCurrentView] = useState<'home' | 'favorites' | 'playlists' | 'history'>('home');
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
   
   const { user, loading: authLoading, signOut } = useAuth();
   const { 
@@ -77,14 +56,27 @@ const Index = () => {
     loadTrending();
   }, []);
 
-  const loadTrending = async () => {
+  const loadTrending = async (reset: boolean = true) => {
     try {
-      setIsLoading(true);
-      const trendingSongs = await getTrendingSongs();
-      setSongs(trendingSongs);
-      setSearchQuery('');
+      if (reset) {
+        setIsLoading(true);
+        setOffset(0);
+      }
       
-      if (trendingSongs?.length > 0) {
+      const currentOffset = reset ? 0 : offset;
+      const trendingSongs = await getTrendingSongs(currentOffset);
+      
+      if (reset) {
+        setSongs(trendingSongs);
+        setSearchQuery('');
+      } else {
+        setSongs(prev => [...prev, ...trendingSongs]);
+      }
+      
+      setHasMore(trendingSongs.length === 20);
+      setOffset(currentOffset + trendingSongs.length);
+      
+      if (trendingSongs?.length > 0 && reset) {
         toast.success(`Found ${trendingSongs?.length} trending songs`);
       }
     } catch (error) {
@@ -94,22 +86,34 @@ const Index = () => {
     }
   };
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = async (query: string, reset: boolean = true) => {
     if (query === 'trending') {
-      await loadTrending();
+      await loadTrending(reset);
       return;
     }
 
     try {
-      setIsLoading(true);
-      setSearchQuery(query);
-      const searchResults = await searchSongs(query);
-      saveSongsToSupabase(searchResults)
-      setSongs(searchResults);
+      if (reset) {
+        setIsLoading(true);
+        setOffset(0);
+      }
       
-      if (searchResults?.length === 0) {
-        toast.error(`No results found for "${query}"`);
+      setSearchQuery(query);
+      const currentOffset = reset ? 0 : offset;
+      const searchResults = await searchSongs(query, currentOffset);
+      
+      if (reset) {
+        setSongs(searchResults);
       } else {
+        setSongs(prev => [...prev, ...searchResults]);
+      }
+      
+      setHasMore(searchResults.length === 20);
+      setOffset(currentOffset + searchResults.length);
+      
+      if (searchResults?.length === 0 && reset) {
+        toast.error(`No results found for "${query}"`);
+      } else if (reset) {
         toast.success(`Found ${searchResults?.length} songs`);
       }
     } catch (error) {
@@ -155,12 +159,27 @@ const Index = () => {
     toast.success('Signed out successfully');
   };
 
+  const loadMoreSongs = () => {
+    if (searchQuery) {
+      handleSearch(searchQuery, false);
+    } else {
+      loadTrending(false);
+    }
+  };
+
+  // Infinite scroll hook
+  useInfiniteScroll({
+    hasMore,
+    loading: isLoading,
+    onLoadMore: loadMoreSongs,
+  });
+
   const getCurrentSongs = () => {
     switch (currentView) {
       case 'favorites':
         return favorites;
       case 'history':
-        return history?.map(h => h.songs);
+        return history?.map(h => h.songs) || [];
       default:
         return songs;
     }
@@ -205,18 +224,24 @@ const Index = () => {
 
           {/* Navigation */}
           {user && (
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-1 mb-4 overflow-x-auto">
               <Button 
                 variant={currentView === 'home' ? 'default' : 'ghost'} 
                 size="sm"
-                onClick={() => setCurrentView('home')}
+                onClick={() => {
+                  setCurrentView('home');
+                  setSelectedPlaylist(null);
+                }}
               >
                 Home
               </Button>
               <Button 
                 variant={currentView === 'favorites' ? 'default' : 'ghost'} 
                 size="sm"
-                onClick={() => setCurrentView('favorites')}
+                onClick={() => {
+                  setCurrentView('favorites');
+                  setSelectedPlaylist(null);
+                }}
               >
                 <Heart className="w-3 h-3 mr-1" />
                 Favorites
@@ -224,7 +249,10 @@ const Index = () => {
               <Button 
                 variant={currentView === 'playlists' ? 'default' : 'ghost'} 
                 size="sm"
-                onClick={() => setCurrentView('playlists')}
+                onClick={() => {
+                  setCurrentView('playlists');
+                  setSelectedPlaylist(null);
+                }}
               >
                 <ListMusic className="w-3 h-3 mr-1" />
                 Playlists
@@ -232,10 +260,27 @@ const Index = () => {
               <Button 
                 variant={currentView === 'history' ? 'default' : 'ghost'} 
                 size="sm"
-                onClick={() => setCurrentView('history')}
+                onClick={() => {
+                  setCurrentView('history');
+                  setSelectedPlaylist(null);
+                }}
               >
                 <History className="w-3 h-3 mr-1" />
                 History
+              </Button>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {user && currentView === 'playlists' && !selectedPlaylist && (
+            <div className="flex gap-2 mb-4">
+              <Button size="sm" onClick={() => setShowCreatePlaylist(true)}>
+                <Plus className="w-3 h-3 mr-1" />
+                New Playlist
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowSpotifyImport(true)}>
+                <Download className="w-3 h-3 mr-1" />
+                Import from Spotify
               </Button>
             </div>
           )}
@@ -277,28 +322,54 @@ const Index = () => {
           </div>
         )}
 
-        {/* Track List */}
+        {/* Content */}
         {!isLoading && (
           <>
             {currentView === 'playlists' ? (
-              <div className="space-y-4">
-                {playlists?.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <ListMusic className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No playlists yet</p>
-                    <p className="text-sm">Create your first playlist!</p>
-                  </div>
-                ) : (
-                  playlists?.map((playlist) => (
-                    <div key={playlist.id} className="p-4 bg-card rounded-lg">
-                      <h3 className="font-semibold">{playlist.name}</h3>
-                      {playlist.description && (
-                        <p className="text-sm text-muted-foreground">{playlist.description}</p>
-                      )}
+              selectedPlaylist ? (
+                <div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSelectedPlaylist(null)}
+                    className="mb-4"
+                  >
+                    ← Back to Playlists
+                  </Button>
+                  <PlaylistDetails
+                    playlist={selectedPlaylist}
+                    onPlay={handleSongPlay}
+                    onToggleFavorite={handleToggleFavorite}
+                    favorites={user ? favorites?.map(f => f.id) : []}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {playlists?.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <ListMusic className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No playlists yet</p>
+                      <p className="text-sm">Create your first playlist!</p>
                     </div>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    playlists?.map((playlist) => (
+                      <div 
+                        key={playlist.id} 
+                        className="p-4 bg-card rounded-lg cursor-pointer hover:bg-accent"
+                        onClick={() => setSelectedPlaylist(playlist)}
+                      >
+                        <h3 className="font-semibold">{playlist.name}</h3>
+                        {playlist.description && (
+                          <p className="text-sm text-muted-foreground">{playlist.description}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Created {new Date(playlist.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )
             ) : (
               <TrackList
                 songs={getCurrentSongs()}
@@ -311,6 +382,13 @@ const Index = () => {
               />
             )}
           </>
+        )}
+
+        {/* Loading more indicator */}
+        {isLoading && songs.length > 0 && (
+          <div className="flex justify-center py-4">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
         )}
 
         {/* Bottom padding for fixed player */}
@@ -330,8 +408,20 @@ const Index = () => {
         handleToggleFavorite={handleToggleFavorite}
       />
 
-      {/* Auth Modal */}
+      {/* Modals */}
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      <SpotifyImport 
+        isOpen={showSpotifyImport} 
+        onClose={() => setShowSpotifyImport(false)}
+        onImportComplete={() => {
+          // Refresh playlists after import
+          window.location.reload();
+        }}
+      />
+      <CreatePlaylistDialog
+        isOpen={showCreatePlaylist}
+        onClose={() => setShowCreatePlaylist(false)}
+      />
     </div>
   );
 };

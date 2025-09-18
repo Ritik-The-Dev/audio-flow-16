@@ -15,18 +15,53 @@ export const useAudioPlayer = () => {
     currentIndex: -1,
   });
 
-  const handleEnded = () => {
+  const pause = useCallback(() => {
+    if (!audioRef.current) return;
+
+    audioRef.current.pause();
+    setPlayerState((prev) => ({ ...prev, isPlaying: false }));
+  }, []);
+
+  // Forward declaration for playNext
+  const playNext = useCallback(() => {
+    if (playerState.queue.length === 0) return;
+
+    let nextIndex = playerState.currentIndex + 1;
+    if (nextIndex >= playerState.queue.length) {
+      // If we've reached the end, stop playing instead of looping
+      pause();
+      setPlayerState((prev) => ({
+        ...prev,
+        isPlaying: false,
+      }));
+      return;
+    }
+
+    const nextSong = playerState.queue[nextIndex];
+    setPlayerState((prev) => ({
+      ...prev,
+      currentIndex: nextIndex,
+      currentSong: nextSong,
+      currentTime: 0,
+    }));
+  }, [
+    playerState.queue,
+    playerState.currentIndex,
+    pause,
+  ]);
+
+  const handleEnded = useCallback(() => {
     if (playerState.isRepeated) {
       // Restart the same song
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play();
+        audioRef.current.play().catch(console.error);
       }
     } else {
-      // Play next if not repeating
+      // Play next song automatically
       playNext();
     }
-  };
+  }, [playerState.isRepeated, playNext]);
 
   // Media Session API for background playback
   useEffect(() => {
@@ -93,13 +128,6 @@ export const useAudioPlayer = () => {
     }
   }, [playerState.currentSong]);
 
-  const pause = useCallback(() => {
-    if (!audioRef.current) return;
-
-    audioRef.current.pause();
-    setPlayerState((prev) => ({ ...prev, isPlaying: false }));
-  }, []);
-
   const togglePlay = useCallback(() => {
     if (playerState.isPlaying) {
       pause();
@@ -107,33 +135,6 @@ export const useAudioPlayer = () => {
       play();
     }
   }, [playerState.isPlaying, play, pause]);
-
-  const playNext = useCallback(() => {
-    if (playerState.queue.length === 0) return;
-
-    let nextIndex = playerState.currentIndex + 1;
-    if (nextIndex >= playerState.queue.length) {
-      if (playerState.isRepeated) {
-        nextIndex = 0;
-      } else {
-        pause();
-        return;
-      }
-    }
-
-    const nextSong = playerState.queue[nextIndex];
-    setPlayerState((prev) => ({
-      ...prev,
-      currentIndex: nextIndex,
-      currentSong: nextSong,
-      currentTime: 0,
-    }));
-  }, [
-    playerState.queue,
-    playerState.currentIndex,
-    playerState.isRepeated,
-    pause,
-  ]);
 
   const playPrevious = useCallback(() => {
     if (playerState.queue.length === 0) return;
@@ -235,7 +236,7 @@ export const useAudioPlayer = () => {
       console.error("Audio playback error:", e);
     };
 
-    // ✅ Use the fixed handler here
+    // Add event listeners
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("ended", handleEnded);
@@ -247,7 +248,7 @@ export const useAudioPlayer = () => {
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
     };
-  }, [playerState.isRepeated, playNext]);
+  }, [handleEnded]);
 
   // Auto-play when current song changes
   useEffect(() => {

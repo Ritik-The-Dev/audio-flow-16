@@ -25,7 +25,7 @@ export const useMusic = () => {
       
       if (response.ok) {
         const data = await response.json()
-        setFavorites(data?.map((fav: any) => fav.songs))
+        setFavorites(data?.map((fav: any) => fav.songs).filter(Boolean))
       }
     } catch (error) {
       console.error('Error fetching favorites:', error)
