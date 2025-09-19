@@ -47,6 +47,8 @@ serve(async (req) => {
     switch (endpoint) {
       case "playlists":
         return await handlePlaylists(req, supabaseClient, user.id)
+      case "playlist-songs":
+        return await handlePlaylistSongs(req, supabaseClient, user.id)
       case "favorites":
         return await handleFavorites(req, supabaseClient, user.id)
       case "history":
@@ -244,6 +246,50 @@ async function handleHistory(req: Request, supabase: any, userId: string) {
         .single()
 
       return new Response(JSON.stringify(historyEntry), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+  }
+}
+
+/* --- Playlist Songs --- */
+async function handlePlaylistSongs(req: Request, supabase: any, userId: string) {
+  switch (req.method) {
+    case "POST":
+      const { playlistId, song } = await req.json()
+      
+      // Verify playlist ownership
+      const { data: playlist } = await supabase
+        .from("playlists")
+        .select("id")
+        .eq("id", playlistId)
+        .eq("user_id", userId)
+        .single()
+
+      if (!playlist) {
+        throw new Error("Playlist not found or access denied")
+      }
+
+      // Ensure song exists in songs table
+      await supabase.from("songs").upsert(song, { onConflict: "id" })
+
+      // Get next position
+      const { count } = await supabase
+        .from("playlist_songs")
+        .select("*", { count: "exact" })
+        .eq("playlist_id", playlistId)
+
+      // Add song to playlist
+      const { data: playlistSong } = await supabase
+        .from("playlist_songs")
+        .insert({
+          playlist_id: playlistId,
+          song_id: song.id,
+          position: (count || 0) + 1
+        })
+        .select()
+        .single()
+
+      return new Response(JSON.stringify(playlistSong), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
   }

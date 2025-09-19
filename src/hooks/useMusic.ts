@@ -148,6 +148,29 @@ export const useMusic = () => {
     }
   }
 
+  // Add song to playlist
+  const addSongToPlaylist = async (playlistId: string, song: Song) => {
+    if (!user) return
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ playlistId, song }),
+      })
+      
+      if (response.ok) {
+        await fetchPlaylists()
+      }
+    } catch (error) {
+      console.error('Error adding song to playlist:', error)
+      throw error
+    }
+  }
+
   // Add song to history
   const addToHistory = async (song: Song, playDuration?: number, completed?: boolean) => {
     if (!user) return
@@ -187,6 +210,7 @@ export const useMusic = () => {
     addToFavorites,
     removeFromFavorites,
     createPlaylist,
+    addSongToPlaylist,
     addToHistory,
     isFavorited,
     fetchFavorites,

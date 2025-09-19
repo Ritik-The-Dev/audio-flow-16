@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, Music, Play, Heart } from 'lucide-react';
+import { Loader2, Plus, Music, Play, Heart, Repeat } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMusic } from '@/hooks/useMusic';
 import { Song } from '@/types/music';
@@ -123,12 +123,18 @@ export const PlaylistDetails: React.FC<PlaylistDetailsProps> = ({
   onToggleFavorite,
   favorites,
 }) => {
+  const [isLooping, setIsLooping] = useState(false);
   const playlistSongs = playlist.playlist_songs?.map((ps: any) => ps.songs) || [];
 
   const handlePlayAll = () => {
     if (playlistSongs.length > 0) {
       onPlay(playlistSongs[0], playlistSongs);
     }
+  };
+
+  const handleToggleLoop = () => {
+    setIsLooping(!isLooping);
+    toast.success(`Playlist loop ${!isLooping ? 'enabled' : 'disabled'}`);
   };
 
   const formatDuration = (duration: string): string => {
@@ -157,10 +163,19 @@ export const PlaylistDetails: React.FC<PlaylistDetailsProps> = ({
           </p>
         </div>
         {playlistSongs.length > 0 && (
-          <Button onClick={handlePlayAll} className="flex-shrink-0">
-            <Play className="w-4 h-4 mr-2" />
-            Play All
-          </Button>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button onClick={handlePlayAll}>
+              <Play className="w-4 h-4 mr-2" />
+              Play All
+            </Button>
+            <Button 
+              variant={isLooping ? "default" : "outline"}
+              onClick={handleToggleLoop}
+              size="icon"
+            >
+              <Repeat className="w-4 h-4" />
+            </Button>
+          </div>
         )}
       </div>
 

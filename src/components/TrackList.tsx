@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, MoreVertical, Heart } from 'lucide-react';
+import { Play, Pause, MoreVertical, Heart, Plus } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Song } from '../types/music';
+import { useMusic } from '@/hooks/useMusic';
+import { toast } from 'sonner';
 
 interface TrackListProps {
   songs: Song[];
@@ -34,6 +38,28 @@ export const TrackList: React.FC<TrackListProps> = ({
   onToggleFavorite,
   favorites = []
 }) => {
+  const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
+  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const { playlists, addSongToPlaylist } = useMusic();
+
+  const handleAddToPlaylist = (song: Song) => {
+    setSelectedSong(song);
+    setShowAddToPlaylist(true);
+  };
+
+  const handlePlaylistSelect = async (playlistId: string) => {
+    if (selectedSong) {
+      try {
+        await addSongToPlaylist(playlistId, selectedSong);
+        toast.success('Song added to playlist');
+        setShowAddToPlaylist(false);
+        setSelectedSong(null);
+      } catch (error) {
+        toast.error('Failed to add song to playlist');
+      }
+    }
+  };
+
   if (songs?.length === 0) {
     return (
       <div className="text-center py-12">
@@ -123,17 +149,29 @@ export const TrackList: React.FC<TrackListProps> = ({
                     <Heart className={`w-4 h-4 ${favorites.includes(song.id) ? 'fill-current' : ''}`} />
                   </Button>
                 )}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Handle more options (future implementation)
-                  }}
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToPlaylist(song);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add to Playlist
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
@@ -152,6 +190,34 @@ export const TrackList: React.FC<TrackListProps> = ({
           </div>
         );
       })}
+
+      {/* Add to Playlist Dialog */}
+      <Dialog open={showAddToPlaylist} onOpenChange={setShowAddToPlaylist}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add to Playlist</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {playlists.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                No playlists found. Create a playlist first.
+              </p>
+            ) : (
+              playlists.map((playlist: any) => (
+                <Button
+                  key={playlist.id}
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => handlePlaylistSelect(playlist.id)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {playlist.name}
+                </Button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
