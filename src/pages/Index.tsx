@@ -37,7 +37,8 @@ const Index = () => {
     addToFavorites, 
     removeFromFavorites, 
     isFavorited,
-    addToHistory 
+    addToHistory,
+    fetchPlaylists
   } = useMusic();
 
   const {
@@ -413,9 +414,9 @@ const Index = () => {
       <SpotifyImport 
         isOpen={showSpotifyImport} 
         onClose={() => setShowSpotifyImport(false)}
-        onImportComplete={() => {
+        onImportComplete={async () => {
           // Refresh playlists after import
-          window.location.reload();
+          await fetchPlaylists();
         }}
       />
       <CreatePlaylistDialog

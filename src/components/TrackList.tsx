@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, MoreVertical, Heart, Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -40,7 +40,12 @@ export const TrackList: React.FC<TrackListProps> = ({
 }) => {
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const { playlists, addSongToPlaylist } = useMusic();
+  const { playlists, addSongToPlaylist, fetchPlaylists } = useMusic();
+
+  // Refresh playlists when component mounts to ensure latest data
+  useEffect(() => {
+    fetchPlaylists();
+  }, []);
 
   const handleAddToPlaylist = (song: Song) => {
     setSelectedSong(song);

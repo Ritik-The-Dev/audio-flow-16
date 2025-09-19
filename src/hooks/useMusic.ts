@@ -34,13 +34,13 @@ export const useMusic = () => {
     }
   }
 
-  // Fetch user's playlists
+  // Fetch user's playlists with songs
   const fetchPlaylists = async () => {
     if (!user) return
 
     try {
       setLoading(true)
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlists`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlists?include_songs=true`, {
         headers: {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
           'Content-Type': 'application/json',

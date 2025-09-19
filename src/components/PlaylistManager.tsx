@@ -30,7 +30,7 @@ export const CreatePlaylistDialog: React.FC<PlaylistManagerProps> = ({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const { createPlaylist } = useMusic();
+  const { createPlaylist, fetchPlaylists } = useMusic();
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -45,6 +45,7 @@ export const CreatePlaylistDialog: React.FC<PlaylistManagerProps> = ({
         description.trim(),
         selectedSongs.map(s => s.id)
       );
+      await fetchPlaylists(); // Refresh playlists immediately
       toast.success('Playlist created successfully');
       onClose();
       setName('');

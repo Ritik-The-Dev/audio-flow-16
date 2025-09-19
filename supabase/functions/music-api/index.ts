@@ -93,15 +93,35 @@ async function handlePlaylists(req: Request, supabase: any, userId: string) {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
       } else {
-        const { data: playlists } = await supabase
-          .from("playlists")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
+        const includeSongs = url.searchParams.get('include_songs') === 'true'
+        
+        if (includeSongs) {
+          const { data: playlists } = await supabase
+            .from("playlists")
+            .select(`
+              *,
+              playlist_songs (
+                position,
+                songs (*)
+              )
+            `)
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
 
-        return new Response(JSON.stringify(playlists), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        })
+          return new Response(JSON.stringify(playlists), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          })
+        } else {
+          const { data: playlists } = await supabase
+            .from("playlists")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+
+          return new Response(JSON.stringify(playlists), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          })
+        }
       }
 
     case "POST":
