@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, MoreVertical, Heart, Plus } from 'lucide-react';
+import { Play, Pause, MoreVertical, Heart, Plus, Download } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Song } from '../types/music';
@@ -14,7 +14,9 @@ interface TrackListProps {
   onPlaySong: (song: Song, songs: Song[]) => void;
   onTogglePlay: () => void;
   onToggleFavorite?: (song: Song) => void;
+  onDownloadSong?: (song: Song) => void;
   favorites?: string[];
+  downloads?: string[];
 }
 
 const formatDuration = (duration: string): string => {
@@ -36,7 +38,9 @@ export const TrackList: React.FC<TrackListProps> = ({
   onPlaySong,
   onTogglePlay,
   onToggleFavorite,
-  favorites = []
+  onDownloadSong,
+  favorites = [],
+  downloads = []
 }) => {
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -175,6 +179,17 @@ export const TrackList: React.FC<TrackListProps> = ({
                       <Plus className="w-4 h-4 mr-2" />
                       Add to Playlist
                     </DropdownMenuItem>
+                    {onDownloadSong && (
+                      <DropdownMenuItem 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDownloadSong(song);
+                        }}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        {downloads.includes(song.id) ? 'Downloaded' : 'Download'}
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

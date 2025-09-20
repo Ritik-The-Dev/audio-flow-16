@@ -8,6 +8,7 @@ export const useMusic = () => {
   const [favorites, setFavorites] = useState<Song[]>([])
   const [playlists, setPlaylists] = useState<any[]>([])
   const [history, setHistory] = useState<any[]>([])
+  const [downloads, setDownloads] = useState<Song[]>([])
   const [loading, setLoading] = useState(false)
 
   // Fetch user's favorites
@@ -189,9 +190,108 @@ export const useMusic = () => {
     }
   }
 
+  // Delete playlist
+  const deletePlaylist = async (playlistId: string) => {
+    if (!user) return
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlists?playlistId=${playlistId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      })
+      
+      if (response.ok) {
+        await fetchPlaylists()
+      }
+    } catch (error) {
+      console.error('Error deleting playlist:', error)
+      throw error
+    }
+  }
+
+  // Remove song from playlist
+  const removeSongFromPlaylist = async (playlistId: string, songId: string) => {
+    if (!user) return
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs?playlistId=${playlistId}&songId=${songId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      })
+      
+      if (response.ok) {
+        await fetchPlaylists()
+      }
+    } catch (error) {
+      console.error('Error removing song from playlist:', error)
+      throw error
+    }
+  }
+
+  // Download management
+  const downloadSong = async (song: Song) => {
+    try {
+      const storedDownloads = localStorage.getItem('downloadedSongs')
+      const existingDownloads = storedDownloads ? JSON.parse(storedDownloads) : []
+      
+      if (!existingDownloads.some((d: Song) => d.id === song.id)) {
+        const updatedDownloads = [...existingDownloads, { ...song, downloadedAt: new Date().toISOString() }]
+        localStorage.setItem('downloadedSongs', JSON.stringify(updatedDownloads))
+        setDownloads(updatedDownloads)
+      }
+    } catch (error) {
+      console.error('Error downloading song:', error)
+      throw error
+    }
+  }
+
+  const downloadPlaylist = async (playlist: any) => {
+    try {
+      const playlistSongs = playlist.playlist_songs?.map((ps: any) => ps.songs) || []
+      for (const song of playlistSongs) {
+        await downloadSong(song)
+      }
+    } catch (error) {
+      console.error('Error downloading playlist:', error)
+      throw error
+    }
+  }
+
+  const removeDownload = (songId: string) => {
+    try {
+      const storedDownloads = localStorage.getItem('downloadedSongs')
+      const existingDownloads = storedDownloads ? JSON.parse(storedDownloads) : []
+      const updatedDownloads = existingDownloads.filter((d: Song) => d.id !== songId)
+      localStorage.setItem('downloadedSongs', JSON.stringify(updatedDownloads))
+      setDownloads(updatedDownloads)
+    } catch (error) {
+      console.error('Error removing download:', error)
+    }
+  }
+
+  const loadDownloads = () => {
+    try {
+      const storedDownloads = localStorage.getItem('downloadedSongs')
+      if (storedDownloads) {
+        setDownloads(JSON.parse(storedDownloads))
+      }
+    } catch (error) {
+      console.error('Error loading downloads:', error)
+    }
+  }
+
   // Check if song is favorited
   const isFavorited = (songId: string) => {
     return favorites?.some(fav => fav.id === songId)
+  }
+
+  // Check if song is downloaded
+  const isDownloaded = (songId: string) => {
+    return downloads?.some(d => d.id === songId)
   }
 
   useEffect(() => {
@@ -200,21 +300,30 @@ export const useMusic = () => {
       fetchPlaylists()
       fetchHistory()
     }
+    loadDownloads()
   }, [user])
 
   return {
     favorites,
     playlists,
     history,
+    downloads,
     loading,
     addToFavorites,
     removeFromFavorites,
     createPlaylist,
     addSongToPlaylist,
+    deletePlaylist,
+    removeSongFromPlaylist,
     addToHistory,
+    downloadSong,
+    downloadPlaylist,
+    removeDownload,
     isFavorited,
+    isDownloaded,
     fetchFavorites,
     fetchPlaylists,
     fetchHistory,
+    loadDownloads,
   }
 }

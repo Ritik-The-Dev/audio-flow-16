@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, Music, Play, Heart, Repeat } from 'lucide-react';
+import { Loader2, Plus, Music, Play, Heart, Repeat, Download, Trash2, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useMusic } from '@/hooks/useMusic';
 import { Song } from '@/types/music';
@@ -19,7 +20,11 @@ interface PlaylistDetailsProps {
   playlist: any;
   onPlay: (song: Song, songs: Song[]) => void;
   onToggleFavorite: (song: Song) => void;
+  onDownloadSong: (song: Song) => void;
+  onDeletePlaylist: (playlistId: string) => void;
+  onRemoveSong: (playlistId: string, songId: string) => void;
   favorites: string[];
+  downloads: string[];
 }
 
 export const CreatePlaylistDialog: React.FC<PlaylistManagerProps> = ({
@@ -122,10 +127,15 @@ export const PlaylistDetails: React.FC<PlaylistDetailsProps> = ({
   playlist,
   onPlay,
   onToggleFavorite,
+  onDownloadSong,
+  onDeletePlaylist,
+  onRemoveSong,
   favorites,
+  downloads,
 }) => {
   const [isLooping, setIsLooping] = useState(false);
-  const playlistSongs = playlist.playlist_songs?.map((ps: any) => ps.songs) || [];
+  const { downloadPlaylist } = useMusic();
+  const playlistSongs = playlist.playlist_songs?.map((ps: any) => ps.songs).filter(Boolean) || [];
 
   const handlePlayAll = () => {
     if (playlistSongs.length > 0) {
@@ -136,6 +146,21 @@ export const PlaylistDetails: React.FC<PlaylistDetailsProps> = ({
   const handleToggleLoop = () => {
     setIsLooping(!isLooping);
     toast.success(`Playlist loop ${!isLooping ? 'enabled' : 'disabled'}`);
+  };
+
+  const handleDownloadPlaylist = async () => {
+    try {
+      await downloadPlaylist(playlist);
+      toast.success('Playlist downloaded successfully');
+    } catch (error) {
+      toast.error('Failed to download playlist');
+    }
+  };
+
+  const handleDeletePlaylist = () => {
+    if (confirm('Are you sure you want to delete this playlist?')) {
+      onDeletePlaylist(playlist.id);
+    }
   };
 
   const formatDuration = (duration: string): string => {
@@ -163,21 +188,43 @@ export const PlaylistDetails: React.FC<PlaylistDetailsProps> = ({
             {playlistSongs.length} song(s)
           </p>
         </div>
-        {playlistSongs.length > 0 && (
-          <div className="flex gap-2 flex-shrink-0">
-            <Button onClick={handlePlayAll}>
-              <Play className="w-4 h-4 mr-2" />
-              Play All
-            </Button>
-            <Button 
-              variant={isLooping ? "default" : "outline"}
-              onClick={handleToggleLoop}
-              size="icon"
-            >
-              <Repeat className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-2 flex-shrink-0">
+          {playlistSongs.length > 0 && (
+            <>
+              <Button onClick={handlePlayAll}>
+                <Play className="w-4 h-4 mr-2" />
+                Play All
+              </Button>
+              <Button 
+                variant={isLooping ? "default" : "outline"}
+                onClick={handleToggleLoop}
+                size="icon"
+              >
+                <Repeat className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleDownloadPlaylist}
+                size="icon"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleDeletePlaylist}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Playlist
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Songs List */}
@@ -220,6 +267,38 @@ export const PlaylistDetails: React.FC<PlaylistDetailsProps> = ({
                     favorites.includes(song.id) ? 'fill-red-500 text-red-500' : ''
                   }`} />
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="w-8 h-8"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDownloadSong(song);
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      {downloads.includes(song.id) ? 'Downloaded' : 'Download'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveSong(playlist.id, song.id);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Remove from Playlist
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           ))}

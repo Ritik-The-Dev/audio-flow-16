@@ -13,7 +13,7 @@ import { useMusic } from '../hooks/useMusic';
 import { searchSongs, getTrendingSongs } from '../utils/api';
 import { Song } from '../types/music';
 import { Button } from '@/components/ui/button';
-import { Music, Loader2, User, Heart, ListMusic, History, LogOut, Plus, Download } from 'lucide-react';
+import { Music, Loader2, User, Heart, ListMusic, History, LogOut, Plus, Download, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from "@/lib/supabase";
 
@@ -25,7 +25,7 @@ const Index = () => {
   const [showSpotifyImport, setShowSpotifyImport] = useState(false);
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'favorites' | 'playlists' | 'history'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'favorites' | 'playlists' | 'history' | 'downloads'>('home');
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
   
@@ -33,10 +33,16 @@ const Index = () => {
   const { 
     favorites, 
     playlists, 
-    history, 
+    history,
+    downloads,
     addToFavorites, 
     removeFromFavorites, 
+    deletePlaylist,
+    removeSongFromPlaylist,
+    downloadSong,
+    removeDownload,
     isFavorited,
+    isDownloaded,
     addToHistory,
     fetchPlaylists
   } = useMusic();
@@ -145,13 +151,39 @@ const Index = () => {
         await removeFromFavorites(song.id);
         toast.success('Removed from favorites');
       } else {
-        console.log('Fvoruite')
         await addToFavorites(song);
         toast.success('Added to favorites');
       }
     } catch (error) {
-      console.log('Errror ',error)
       toast.error('Failed to update favorites');
+    }
+  };
+
+  const handleDownloadSong = async (song: Song) => {
+    try {
+      await downloadSong(song);
+      toast.success('Song downloaded successfully');
+    } catch (error) {
+      toast.error('Failed to download song');
+    }
+  };
+
+  const handleDeletePlaylist = async (playlistId: string) => {
+    try {
+      await deletePlaylist(playlistId);
+      toast.success('Playlist deleted successfully');
+      setSelectedPlaylist(null);
+    } catch (error) {
+      toast.error('Failed to delete playlist');
+    }
+  };
+
+  const handleRemoveSongFromPlaylist = async (playlistId: string, songId: string) => {
+    try {
+      await removeSongFromPlaylist(playlistId, songId);
+      toast.success('Song removed from playlist');
+    } catch (error) {
+      toast.error('Failed to remove song from playlist');
     }
   };
 
@@ -181,6 +213,8 @@ const Index = () => {
         return favorites;
       case 'history':
         return history?.map(h => h.songs) || [];
+      case 'downloads':
+        return downloads;
       default:
         return songs;
     }
@@ -194,6 +228,8 @@ const Index = () => {
         return 'Your Playlists';
       case 'history':
         return 'Recently Played';
+      case 'downloads':
+        return 'Downloaded Songs';
       default:
         return searchQuery ? `Results for "${searchQuery}"` : 'Trending Now';
     }
@@ -269,6 +305,17 @@ const Index = () => {
                 <History className="w-3 h-3 mr-1" />
                 History
               </Button>
+              <Button 
+                variant={currentView === 'downloads' ? 'default' : 'ghost'} 
+                size="sm"
+                onClick={() => {
+                  setCurrentView('downloads');
+                  setSelectedPlaylist(null);
+                }}
+              >
+                <Download className="w-3 h-3 mr-1" />
+                Downloads
+              </Button>
             </div>
           )}
 
@@ -308,6 +355,8 @@ const Index = () => {
               ? `${favorites?.length} favorite songs`
               : currentView === 'history'
               ? `${history?.length} recently played`
+              : currentView === 'downloads'
+              ? `${downloads?.length} downloaded songs`
               : `${playlists?.length} playlists`
             }
           </p>
@@ -341,7 +390,11 @@ const Index = () => {
                     playlist={selectedPlaylist}
                     onPlay={handleSongPlay}
                     onToggleFavorite={handleToggleFavorite}
+                    onDownloadSong={handleDownloadSong}
+                    onDeletePlaylist={handleDeletePlaylist}
+                    onRemoveSong={handleRemoveSongFromPlaylist}
                     favorites={user ? favorites?.map(f => f.id) : []}
+                    downloads={downloads?.map(d => d.id) || []}
                   />
                 </div>
               ) : (
@@ -363,14 +416,56 @@ const Index = () => {
                         {playlist.description && (
                           <p className="text-sm text-muted-foreground">{playlist.description}</p>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Created {new Date(playlist.created_at).toLocaleDateString()}
+                       <p className="text-xs text-muted-foreground mt-1">
+                          {playlist.playlist_songs?.length || 0} songs • Created {new Date(playlist.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     ))
                   )}
                 </div>
               )
+            ) : currentView === 'downloads' ? (
+              <div className="space-y-4">
+                {downloads?.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Download className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No downloaded songs yet</p>
+                    <p className="text-sm">Download songs to access them offline!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {downloads?.map((song) => (
+                      <div
+                        key={song.id}
+                        className="flex items-center gap-3 p-3 hover:bg-accent rounded-lg cursor-pointer"
+                        onClick={() => handleSongPlay(song, downloads)}
+                      >
+                        <img
+                          src={song.image}
+                          alt={song.title}
+                          className="w-10 h-10 rounded object-cover"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">{song.title}</h4>
+                          <p className="text-muted-foreground text-xs truncate">{song.artist}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="w-8 h-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeDownload(song.id);
+                            toast.success('Download removed');
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : (
               <TrackList
                 songs={getCurrentSongs()}
@@ -379,7 +474,9 @@ const Index = () => {
                 onPlaySong={handleSongPlay}
                 onTogglePlay={togglePlay}
                 onToggleFavorite={handleToggleFavorite}
+                onDownloadSong={handleDownloadSong}
                 favorites={user ? favorites?.map(f => f.id) : []}
+                downloads={downloads?.map(d => d.id) || []}
               />
             )}
           </>

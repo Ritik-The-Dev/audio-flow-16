@@ -167,11 +167,20 @@ async function handlePlaylists(req: Request, supabase: any, userId: string) {
       })
 
     case "DELETE":
-      if (!playlistId) throw new Error("Playlist ID required")
+      const playlistIdParam = url.searchParams.get("playlistId")
+      if (!playlistIdParam) throw new Error("Playlist ID required")
+      
+      // Delete playlist songs first
+      await supabase
+        .from("playlist_songs")
+        .delete()
+        .eq("playlist_id", playlistIdParam)
+      
+      // Delete playlist
       await supabase
         .from("playlists")
         .delete()
-        .eq("id", playlistId)
+        .eq("id", playlistIdParam)
         .eq("user_id", userId)
 
       return new Response(JSON.stringify({ success: true }), {
@@ -273,6 +282,8 @@ async function handleHistory(req: Request, supabase: any, userId: string) {
 
 /* --- Playlist Songs --- */
 async function handlePlaylistSongs(req: Request, supabase: any, userId: string) {
+  const url = new URL(req.url)
+  
   switch (req.method) {
     case "POST":
       const { playlistId, song } = await req.json()
@@ -310,6 +321,37 @@ async function handlePlaylistSongs(req: Request, supabase: any, userId: string) 
         .single()
 
       return new Response(JSON.stringify(playlistSong), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    
+    case "DELETE":
+      const playlistId = url.searchParams.get('playlistId')
+      const songId = url.searchParams.get('songId')
+      
+      if (!playlistId || !songId) {
+        throw new Error("Playlist ID and Song ID required")
+      }
+      
+      // Verify playlist ownership
+      const { data: playlistOwnership } = await supabase
+        .from("playlists")
+        .select("id")
+        .eq("id", playlistId)
+        .eq("user_id", userId)
+        .single()
+
+      if (!playlistOwnership) {
+        throw new Error("Playlist not found or access denied")
+      }
+      
+      // Remove song from playlist
+      await supabase
+        .from("playlist_songs")
+        .delete()
+        .eq("playlist_id", playlistId)
+        .eq("song_id", songId)
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
   }
