@@ -21,7 +21,7 @@ export const SpotifyImport: React.FC<SpotifyImportProps> = ({
 }) => {
   const [playlistUrl, setPlaylistUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
-  const { createPlaylist } = useMusic();
+  const { createPlaylist, addSongToPlaylist } = useMusic();
 
   const extractPlaylistId = (url: string) => {
     const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
@@ -88,9 +88,20 @@ export const SpotifyImport: React.FC<SpotifyImportProps> = ({
       }
 
       if (importedSongs.length > 0) {
-        // Create playlist with imported songs
+        // Create playlist first
         const playlistName = `Imported from Spotify - ${new Date().toLocaleDateString()}`;
-        await createPlaylist(playlistName, 'Imported from Spotify playlist', importedSongs.map(s => s.id));
+        const playlist = await createPlaylist(playlistName, 'Imported from Spotify playlist');
+        
+        if (playlist) {
+          // Add each song to the playlist individually
+          for (const song of importedSongs) {
+            try {
+              await addSongToPlaylist(playlist.id, song);
+            } catch (error) {
+              console.error('Error adding song to playlist:', error);
+            }
+          }
+        }
         
         onImportComplete(importedSongs);
         toast.success(`Successfully imported ${importedSongs.length} songs`);

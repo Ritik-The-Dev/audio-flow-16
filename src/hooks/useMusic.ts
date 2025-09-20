@@ -141,11 +141,35 @@ export const useMusic = () => {
       })
       
       if (response.ok) {
+        const newPlaylist = await response.json()
+        
+        // If songs provided, add them to the playlist one by one to ensure proper insertion
+        if (songIds && songIds.length > 0) {
+          const songResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/songs`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ songIds }),
+          })
+          
+          if (songResponse.ok) {
+            const songs = await songResponse.json()
+            
+            // Add each song to the playlist
+            for (const song of songs) {
+              await addSongToPlaylist(newPlaylist.id, song)
+            }
+          }
+        }
+        
         await fetchPlaylists()
-        return await response.json()
+        return newPlaylist
       }
     } catch (error) {
       console.error('Error creating playlist:', error)
+      throw error
     }
   }
 
@@ -154,6 +178,7 @@ export const useMusic = () => {
     if (!user) return
 
     try {
+      console.log('Adding song to playlist:', { playlistId, song })
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs`, {
         method: 'POST',
         headers: {
@@ -164,7 +189,14 @@ export const useMusic = () => {
       })
       
       if (response.ok) {
-        await fetchPlaylists()
+        const result = await response.json()
+        console.log('Song added successfully:', result)
+        await fetchPlaylists() // Refresh playlists to show updated data
+        return result
+      } else {
+        const errorText = await response.text()
+        console.error('Failed to add song:', errorText)
+        throw new Error(`Failed to add song: ${errorText}`)
       }
     } catch (error) {
       console.error('Error adding song to playlist:', error)
@@ -203,7 +235,10 @@ export const useMusic = () => {
       })
       
       if (response.ok) {
-        await fetchPlaylists()
+        await fetchPlaylists() // Auto-refresh playlists
+        return true
+      } else {
+        throw new Error('Failed to delete playlist')
       }
     } catch (error) {
       console.error('Error deleting playlist:', error)
@@ -224,7 +259,10 @@ export const useMusic = () => {
       })
       
       if (response.ok) {
-        await fetchPlaylists()
+        await fetchPlaylists() // Auto-refresh playlists
+        return true
+      } else {
+        throw new Error('Failed to remove song from playlist')
       }
     } catch (error) {
       console.error('Error removing song from playlist:', error)

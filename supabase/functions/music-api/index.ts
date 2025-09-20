@@ -138,14 +138,8 @@ async function handlePlaylists(req: Request, supabase: any, userId: string) {
 
       if (error) throw error
 
-      if (songIds.length > 0) {
-        const playlistSongs = songIds.map((songId: string, index: number) => ({
-          playlist_id: playlist.id,
-          song_id: songId,
-          position: index,
-        }))
-        await supabase.from("playlist_songs").insert(playlistSongs)
-      }
+      // Don't add songs here - they should be added via the playlist-songs endpoint
+      // This ensures proper song data handling and validation
 
       return new Response(JSON.stringify(playlist), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -345,11 +339,13 @@ async function handlePlaylistSongs(req: Request, supabase: any, userId: string) 
       }
       
       // Remove song from playlist
-      await supabase
+      const { error: deleteError } = await supabase
         .from("playlist_songs")
         .delete()
         .eq("playlist_id", playlistId)
         .eq("song_id", songId)
+
+      if (deleteError) throw deleteError
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
