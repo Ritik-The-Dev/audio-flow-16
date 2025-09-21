@@ -179,7 +179,8 @@ export const useMusic = () => {
 
     try {
       console.log('Adding song to playlist:', { playlistId, song })
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs`, {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs?endpoint=playlist-songs`
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
@@ -195,7 +196,7 @@ export const useMusic = () => {
         return result
       } else {
         const errorText = await response.text()
-        console.error('Failed to add song:', errorText)
+        console.error('Failed to add song (status ' + response.status + '):', errorText)
         throw new Error(`Failed to add song: ${errorText}`)
       }
     } catch (error) {
@@ -251,7 +252,7 @@ export const useMusic = () => {
     if (!user) return
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs?playlistId=${playlistId}&songId=${songId}`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs?playlistId=${playlistId}&songId=${songId}&endpoint=playlist-songs`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,

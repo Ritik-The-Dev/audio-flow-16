@@ -161,7 +161,7 @@ async function handlePlaylists(req: Request, supabase: any, userId: string) {
       })
 
     case "DELETE":
-      const playlistIdParam = url.searchParams.get("playlistId")
+      const playlistIdParam = url.searchParams.get("playlistId") || url.searchParams.get("id")
       if (!playlistIdParam) throw new Error("Playlist ID required")
       
       // Delete playlist songs first
