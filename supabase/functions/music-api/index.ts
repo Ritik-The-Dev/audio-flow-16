@@ -304,7 +304,7 @@ async function handlePlaylistSongs(req: Request, supabase: any, userId: string) 
         .eq("playlist_id", playlistId)
 
       // Add song to playlist
-      const { data: playlistSong } = await supabase
+      const { data: playlistSong, error: insertError } = await supabase
         .from("playlist_songs")
         .insert({
           playlist_id: playlistId,
@@ -313,6 +313,16 @@ async function handlePlaylistSongs(req: Request, supabase: any, userId: string) 
         })
         .select()
         .single()
+
+      if (insertError) {
+        // Unique violation means the song is already in the playlist
+        if ((insertError as any).code === '23505') {
+          return new Response(JSON.stringify({ success: true, duplicate: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          })
+        }
+        throw insertError
+      }
 
       return new Response(JSON.stringify(playlistSong), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -357,13 +367,34 @@ async function handlePlaylistSongs(req: Request, supabase: any, userId: string) 
 async function handleSongs(req: Request, supabase: any) {
   switch (req.method) {
     case "POST":
-      const { songs } = await req.json()
-      const { data: upsertedSongs } = await supabase
-        .from("songs")
-        .upsert(songs, { onConflict: "id" })
-        .select()
+      const body = await req.json()
 
-      return new Response(JSON.stringify(upsertedSongs), {
+      // If full song objects are provided, upsert them and return
+      if (Array.isArray(body.songs) && body.songs.length > 0) {
+        const { data: upsertedSongs, error } = await supabase
+          .from("songs")
+          .upsert(body.songs, { onConflict: "id" })
+          .select()
+        if (error) throw error
+        return new Response(JSON.stringify(upsertedSongs), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      // If only song IDs are provided, fetch them from the DB and return
+      if (Array.isArray(body.songIds) && body.songIds.length > 0) {
+        const { data: foundSongs, error } = await supabase
+          .from("songs")
+          .select("*")
+          .in("id", body.songIds)
+        if (error) throw error
+        return new Response(JSON.stringify(foundSongs || []), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      // Nothing to do
+      return new Response(JSON.stringify([]), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
   }

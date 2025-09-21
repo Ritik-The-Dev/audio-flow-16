@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Loader2, Plus, Music, Play, Heart, Repeat, Download, Trash2, MoreVertical } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -70,6 +70,9 @@ export const CreatePlaylistDialog: React.FC<PlaylistManagerProps> = ({
             <Plus className="w-5 h-5" />
             Create New Playlist
           </DialogTitle>
+          <DialogDescription>
+            Give your playlist a name and optional description.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">

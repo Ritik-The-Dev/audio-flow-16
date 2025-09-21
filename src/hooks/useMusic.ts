@@ -273,9 +273,30 @@ export const useMusic = () => {
   // Download management
   const downloadSong = async (song: Song) => {
     try {
+      // Attempt device download
+      try {
+        const response = await fetch(song.media_url)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        const safeName = `${song.title} - ${song.artist}`.replace(/[^\w\s.-]/g, '_')
+        // Try to infer extension
+        const contentType = response.headers.get('content-type') || ''
+        const ext = contentType.includes('audio') ? (contentType.includes('mpeg') ? 'mp3' : contentType.split('/')[1].split(';')[0] || 'mp3') : 'mp3'
+        a.href = url
+        a.download = `${safeName}.${ext}`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        window.URL.revokeObjectURL(url)
+      } catch (e) {
+        // Fallback: open media URL in a new tab so the user can save it
+        window.open(song.media_url, '_blank')
+      }
+
+      // Track in local storage for the Downloads section
       const storedDownloads = localStorage.getItem('downloadedSongs')
       const existingDownloads = storedDownloads ? JSON.parse(storedDownloads) : []
-      
       if (!existingDownloads.some((d: Song) => d.id === song.id)) {
         const updatedDownloads = [...existingDownloads, { ...song, downloadedAt: new Date().toISOString() }]
         localStorage.setItem('downloadedSongs', JSON.stringify(updatedDownloads))

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, MoreVertical, Heart, Plus, Download } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Song } from '../types/music';
 import { useMusic } from '@/hooks/useMusic';
 import { toast } from 'sonner';
@@ -216,6 +216,7 @@ export const TrackList: React.FC<TrackListProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add to Playlist</DialogTitle>
+            <DialogDescription>Select a playlist to add this song.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {playlists.length === 0 ? (

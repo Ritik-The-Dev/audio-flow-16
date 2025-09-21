@@ -171,6 +171,7 @@ const Index = () => {
   const handleDeletePlaylist = async (playlistId: string) => {
     try {
       await deletePlaylist(playlistId);
+      await fetchPlaylists();
       toast.success('Playlist deleted successfully');
       setSelectedPlaylist(null);
     } catch (error) {
@@ -181,6 +182,11 @@ const Index = () => {
   const handleRemoveSongFromPlaylist = async (playlistId: string, songId: string) => {
     try {
       await removeSongFromPlaylist(playlistId, songId);
+      await fetchPlaylists();
+      const updated = playlists?.find((p) => p.id === playlistId);
+      if (updated && selectedPlaylist?.id === playlistId) {
+        setSelectedPlaylist(updated);
+      }
       toast.success('Song removed from playlist');
     } catch (error) {
       toast.error('Failed to remove song from playlist');
