@@ -179,15 +179,31 @@ export const useMusic = () => {
 
     try {
       console.log('Adding song to playlist:', { playlistId, song })
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs?endpoint=playlist-songs`
-      const response = await fetch(url, {
+
+      // Try primary endpoint (music-api subpath)
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      const primaryUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs?endpoint=playlist-songs`
+      let response = await fetch(primaryUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ playlistId, song }),
       })
+
+      // Fallback to legacy function if not found
+      if (response.status === 404) {
+        const fallbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/playlist-management?action=add-song`
+        response = await fetch(fallbackUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ playlistId, songData: song }),
+        })
+      }
       
       if (response.ok) {
         const result = await response.json()
@@ -252,18 +268,32 @@ export const useMusic = () => {
     if (!user) return
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs?playlistId=${playlistId}&songId=${songId}&endpoint=playlist-songs`, {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      let response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/music-api/playlist-songs?playlistId=${playlistId}&songId=${songId}&endpoint=playlist-songs`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Authorization': `Bearer ${token}`,
         },
       })
+      
+      if (response.status === 404) {
+        // Fallback to legacy function
+        response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/playlist-management?action=remove-song`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ playlistId, songId }),
+        })
+      }
       
       if (response.ok) {
         await fetchPlaylists() // Auto-refresh playlists
         return true
       } else {
-        throw new Error('Failed to remove song from playlist')
+        const errorText = await response.text()
+        throw new Error(`Failed to remove song from playlist: ${errorText}`)
       }
     } catch (error) {
       console.error('Error removing song from playlist:', error)
