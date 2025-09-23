@@ -42,7 +42,12 @@ serve(async (req) => {
     }
 
     const url = new URL(req.url)
-    const endpoint = url.pathname.split("/").pop()
+    const segments = url.pathname.split('/').filter(Boolean)
+    let endpoint = segments[segments.length - 1] || ''
+    // Support trailing slashes and base calls with ?endpoint=...
+    if (!endpoint || endpoint === 'music-api') {
+      endpoint = url.searchParams.get('endpoint') || ''
+    }
 
     switch (endpoint) {
       case "playlists":
